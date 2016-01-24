@@ -5,7 +5,7 @@ date: "January 24, 2016"
 output: html_document
 ---
 
-https://github.com/chrishorvath/Practical_Machine_Learning
+`https://github.com/chrishorvath/Practical_Machine_Learing`
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
