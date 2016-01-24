@@ -1,0 +1,140 @@
+---
+title: "Analysis of Weight Lifting Impact Leveraging Multiple Machine Learning Methods"
+author: "Chris Horvath"
+date: "January 24, 2016"
+output: html_document
+---
+
+https://github.com/chrishorvath/Practical_Machine_Learning
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Practical Machine Learning - Course Project
+
+## Synopsis
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity. The goal of this project is to predict the manner in which they did the exercise using data from the following study:
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+In the study six participants participated in a dumbbell lifting exercise five different ways (class A-E). Class A being the correct way while the other 4 classes correspond to common mistakes.
+
+## Question
+Can the activity class be predicted?
+
+### Setup environment
+```{r}
+library(RCurl)
+library(AppliedPredictiveModeling)
+library(caret)
+library(rattle)
+library(rpart.plot)
+library(randomForest)
+```
+
+
+## Input Data
+Ultimately, the prediction model is to be run on the test data to predict the outcome of 20 different test cases.
+
+The first step is to import the data and to verify that the training data and the test data are identical.
+
+```{r}
+train_url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+train_file <- "pml-training.csv"
+if (!file.exists(train_file)){
+  download.file(train_url, train_file, method="libcurl")
+} 
+test_url <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+test_file <- "pml-testing.csv"
+if (!file.exists(test_file)){
+  download.file(test_url, test_file, method="libcurl")
+} 
+
+# Load data
+train_df <- read.csv(train_file, na.strings=c("NA",""), header=TRUE)
+test_df <- read.csv(test_file, na.strings=c("NA",""), header=TRUE)
+```
+
+## Features
+
+Remove NA data and remove columns not needed in analysis (more than 95% NA)
+
+```{r}
+
+nas <- sapply(train_df, function(x) mean(is.na(x))) > 0.95
+train_df <- train_df[, !nas]
+test_df <- test_df[, !nas]
+
+
+# Remove columns not used in analysis
+train_df <- train_df[,8:length(colnames(train_df))]
+test_df <- test_df[,8:length(colnames(test_df))]
+
+```
+
+
+
+
+## Alogrithum
+Two different algorithms: classification trees (method = rpart) and random forests (method = rf).
+
+## Parameters
+Divide the training set into two roughly equal sets for cross-validation.
+
+```{r}
+set.seed(12345)
+idx_train <- createDataPartition(train_df$classe, p=0.5, list=FALSE)
+train_df2 <- train_df[idx_train,]
+crossvalidation_df <- train_df[-idx_train,]
+```
+
+## Evaluation
+
+###Classification Tree
+
+Model with training data
+```{r}
+set.seed(12345)
+modFitA <- rpart(classe ~ ., data=train_df2, method="class")
+
+fancyRpartPlot(modFitA)
+```
+
+Run against cross-validation data
+```{r}
+predictions <- predict(modFitA, crossvalidation_df, type = "class")
+
+confusionMatrix(predictions, crossvalidation_df$classe)
+```
+
+
+
+
+### Random Forest
+
+Model with training data
+```{r}
+set.seed(12345)
+modFit <- train(train_df2$classe ~ ., method="rf", trControl=trainControl(method = "cv", number = 2), data=train_df2)
+```
+
+Run against cross-validation data
+```{r}
+predictions <- predict(modFit, newdata=crossvalidation_df)
+confusionMatrix(predictions, crossvalidation_df$classe)
+```
+
+
+# Conclusion
+
+Using the classification tree model using a simple cross-validation method the accuracy was a bit low at 0.7461.
+
+Using the same binary cross-validation with random forest model the accuracy was greatly increased to 0.9898. The model attributes are as follows
+```{r}
+modFit$finalModel
+```
+I received following predicted against the 20 item test set:
+```{r}
+print(predict(modFit, test_df))
+```
